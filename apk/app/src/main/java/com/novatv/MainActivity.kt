@@ -1,4 +1,4 @@
-ackage com.novatv
+package com.novatv
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -90,3 +90,4 @@ class MainActivity : Activity() {
 
     override fun onDestroy() { super.onDestroy(); webView.destroy() }
 }
+
