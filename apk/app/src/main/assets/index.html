@@ -271,7 +271,8 @@ const BAD_RE   = /^(sin grupo|)$/i;
 // ═══════════════════════════════════
 window.onload = function() {
   document.getElementById('url-input').value = DEFAULT_URL;
-  loadList();
+  // Esperar que el puente Android esté listo
+  setTimeout(loadList, 800);
 };
 
 // ═══════════════════════════════════
