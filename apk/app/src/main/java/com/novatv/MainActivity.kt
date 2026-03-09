@@ -1,37 +1,18 @@
-package com.novatv
+ackage com.novatv
 
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.webkit.*
-import fi.iki.elonen.NanoHTTPD
-import java.io.InputStream
-
-// Mini servidor HTTP local en puerto 8080
-class AssetServer(private val activity: Activity) : NanoHTTPD("127.0.0.1", 8080) {
-    override fun serve(session: IHTTPSession): Response {
-        return try {
-            val path = if (session.uri == "/" || session.uri == "") "index.html"
-                       else session.uri.trimStart('/')
-            val stream: InputStream = activity.assets.open(path)
-            val mime = when {
-                path.endsWith(".html") -> "text/html"
-                path.endsWith(".js")   -> "application/javascript"
-                path.endsWith(".css")  -> "text/css"
-                else -> "application/octet-stream"
-            }
-            newChunkedResponse(Response.Status.OK, mime, stream)
-        } catch (e: Exception) {
-            newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not found")
-        }
-    }
-}
+import java.net.URL
+import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
-    private var server: AssetServer? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,11 +24,9 @@ class MainActivity : Activity() {
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         )
 
-        // Iniciar servidor local
-        server = AssetServer(this)
-        server?.start()
-
         webView = WebView(this)
+        setContentView(webView)
+
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -57,23 +36,49 @@ class MainActivity : Activity() {
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             cacheMode = WebSettings.LOAD_DEFAULT
         }
+
+        // Permitir fullscreen video
         webView.webChromeClient = object : WebChromeClient() {
             private var customView: View? = null
-            private var customViewCallback: CustomViewCallback? = null
+            private var cb: CustomViewCallback? = null
             override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-                customView = view; customViewCallback = callback
+                customView = view; cb = callback
                 setContentView(view)
             }
             override fun onHideCustomView() {
                 setContentView(webView)
-                customViewCallback?.onCustomViewHidden(); customView = null
+                cb?.onCustomViewHidden(); customView = null
             }
         }
-        webView.webViewClient = WebViewClient()
-        setContentView(webView)
 
-        // Cargar desde servidor local en vez de file://
-        webView.loadUrl("http://127.0.0.1:8080/")
+        // Puente Java ↔ JavaScript para descargar M3U
+        webView.addJavascriptInterface(object : Any() {
+            @android.webkit.JavascriptInterface
+            fun fetchUrl(url: String): String {
+                return try {
+                    val conn = URL(url).openConnection()
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 20000
+                    conn.getInputStream().bufferedReader().readText()
+                } catch (e: Exception) {
+                    "ERROR:${e.message}"
+                }
+            }
+
+            @android.webkit.JavascriptInterface
+            fun saveData(key: String, value: String) {
+                getSharedPreferences("novatv", MODE_PRIVATE).edit().putString(key, value).apply()
+            }
+
+            @android.webkit.JavascriptInterface
+            fun loadData(key: String): String {
+                return getSharedPreferences("novatv", MODE_PRIVATE).getString(key, "") ?: ""
+            }
+        }, "Android")
+
+        webView.webViewClient = WebViewClient()
+        webView.loadUrl("file:///android_asset/index.html")
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -83,9 +88,5 @@ class MainActivity : Activity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        server?.stop()
-        webView.destroy()
-    }
+    override fun onDestroy() { super.onDestroy(); webView.destroy() }
 }
