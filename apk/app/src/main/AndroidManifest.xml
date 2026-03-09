@@ -9,11 +9,10 @@
     <uses-feature android:name="android.software.leanback" android:required="false"/>
 
     <application
-        android:allowBackup="true"
-        android:label="NOVA TV"
-        android:icon="@mipmap/ic_launcher"
-        android:theme="@style/Theme.NovaTV"
-        android:usesCleartextTraffic="true">
+    android:allowBackup="true"
+    android:label="NOVA TV"
+    android:theme="@style/Theme.NovaTV"
+    android:usesCleartextTraffic="true">
 
         <!-- Main Activity — lanza en Android TV como app TV -->
         <activity
