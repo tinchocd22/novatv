@@ -1,51 +1,28 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'com.chaquo.python'
 }
 
 android {
     namespace 'com.novatv'
     compileSdk 34
-
     defaultConfig {
         applicationId "com.novatv"
         minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.0"
-
-        ndk { abiFilters "arm64-v8a", "armeabi-v7a", "x86_64" }
-
-        python {
-            version "3.11"
-            pip {
-                install "flask==3.0.3"
-                install "requests==2.31.0"
-            }
-            // Embed the server files
-            extractPackages "flask", "werkzeug", "jinja2", "markupsafe", "click", "itsdangerous", "blinker"
-        }
     }
-
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
     kotlinOptions { jvmTarget = '1.8' }
-
-    sourceSets {
-        main {
-            python.srcDirs = ["src/main/python"]
-        }
-    }
 }
 
 dependencies {
