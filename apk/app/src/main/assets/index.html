@@ -241,10 +241,16 @@ const STORAGE_KEY = 'novatv_url';
 const DEFAULT_URL = 'https://raw.githubusercontent.com/tinchocd22/Tvmaria/refs/heads/main/tvtincho.m3u';
 
 function saveUrl(url) {
-  try { localStorage.setItem(STORAGE_KEY, url); } catch(e){}
+  try {
+    if (window.Android) window.Android.saveData(STORAGE_KEY, url);
+    else localStorage.setItem(STORAGE_KEY, url);
+  } catch(e){}
 }
 function loadSavedUrl() {
-  try { return localStorage.getItem(STORAGE_KEY) || ''; } catch(e){ return ''; }
+  try {
+    if (window.Android) return window.Android.loadData(STORAGE_KEY) || '';
+    return localStorage.getItem(STORAGE_KEY) || '';
+  } catch(e){ return ''; }
 }
 
 // ═══════════════════════════════════
@@ -300,28 +306,40 @@ async function loadList() {
   let url = document.getElementById('url-input').value.trim();
   if (!url) { showToast('Ingresá una URL'); return; }
 
-  // Convertir github.com a raw
   url = url.replace('github.com','raw.githubusercontent.com').replace('/blob/','/')
            .replace(/\/$/,'');
 
   showLoading('Descargando lista...');
   try {
-    // Intentar fetch directo primero
     let text = null;
-    try {
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        mode: 'cors'
-      });
-      if (res.ok) text = await res.text();
-    } catch(e) {}
 
-    // Si falla CORS, intentar via proxy público
+    // Opción 1: puente nativo Android (más confiable, sin CORS)
+    if (window.Android && window.Android.fetchUrl) {
+      showLoading('Descargando...');
+      await new Promise(resolve => setTimeout(resolve, 50)); // yield UI
+      text = window.Android.fetchUrl(url);
+      if (text && text.startsWith('ERROR:')) {
+        console.warn('Android bridge error:', text);
+        text = null;
+      }
+    }
+
+    // Opción 2: fetch directo
+    if (!text) {
+      try {
+        const res = await fetch(url, { mode: 'cors' });
+        if (res.ok) text = await res.text();
+      } catch(e) {}
+    }
+
+    // Opción 3: proxy CORS
     if (!text) {
       showLoading('Intentando via proxy...');
-      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const res2 = await fetch(proxy);
-      if (res2.ok) text = await res2.text();
+      try {
+        const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+        const res2 = await fetch(proxy);
+        if (res2.ok) text = await res2.text();
+      } catch(e) {}
     }
 
     if (!text) throw new Error('No se pudo descargar la lista');
@@ -335,7 +353,7 @@ async function loadList() {
     const live = items.filter(c => !c.vod).length;
     const vod  = items.filter(c =>  c.vod).length;
     setStatus(true, `${items.length} canales`);
-    showToast(`✓ ${items.length} elementos  •  📺 ${live} TV  •  🎬 ${vod} VOD`);
+    showToast('✓ ' + items.length + ' elementos  •  📺 ' + live + ' TV  •  🎬 ' + vod + ' VOD');
     hideLoading();
     setMode(mode, true);
 
