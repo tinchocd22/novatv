@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -180,12 +180,12 @@
 
 <div id="header">
   <div id="logo"><span>NOVA</span> TV</div>
-  <nav id="nav">
+  <nav id="nav" style="margin:0 auto">
     <button class="nav-btn active" onclick="setMode('tv')">📺 TV</button>
     <button class="nav-btn" onclick="setMode('movies')">🎬 Películas</button>
     <button class="nav-btn" onclick="setMode('series')">📂 Series</button>
   </nav>
-  <div id="url-area">
+  <div id="url-area" style="display:none">
     <input id="url-input" type="url" placeholder="URL lista M3U..." autocomplete="off" autocorrect="off" spellcheck="false">
     <button id="load-btn" onclick="loadList()">Cargar</button>
   </div>
@@ -238,6 +238,7 @@
 //  STORAGE — guarda URL en localStorage
 // ═══════════════════════════════════
 const STORAGE_KEY = 'novatv_url';
+const DEFAULT_URL = 'https://raw.githubusercontent.com/tinchocd22/Tvmaria/refs/heads/main/tvtincho.m3u';
 
 function saveUrl(url) {
   try { localStorage.setItem(STORAGE_KEY, url); } catch(e){}
@@ -263,11 +264,8 @@ const BAD_RE   = /^(sin grupo|)$/i;
 //  INIT
 // ═══════════════════════════════════
 window.onload = function() {
-  const saved = loadSavedUrl();
-  if (saved) {
-    document.getElementById('url-input').value = saved;
-    loadList();
-  }
+  document.getElementById('url-input').value = DEFAULT_URL;
+  loadList();
 };
 
 // ═══════════════════════════════════
