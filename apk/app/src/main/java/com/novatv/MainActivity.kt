@@ -6,9 +6,32 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.webkit.*
+import fi.iki.elonen.NanoHTTPD
+import java.io.InputStream
+
+// Mini servidor HTTP local en puerto 8080
+class AssetServer(private val activity: Activity) : NanoHTTPD("127.0.0.1", 8080) {
+    override fun serve(session: IHTTPSession): Response {
+        return try {
+            val path = if (session.uri == "/" || session.uri == "") "index.html"
+                       else session.uri.trimStart('/')
+            val stream: InputStream = activity.assets.open(path)
+            val mime = when {
+                path.endsWith(".html") -> "text/html"
+                path.endsWith(".js")   -> "application/javascript"
+                path.endsWith(".css")  -> "text/css"
+                else -> "application/octet-stream"
+            }
+            newChunkedResponse(Response.Status.OK, mime, stream)
+        } catch (e: Exception) {
+            newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not found")
+        }
+    }
+}
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private var server: AssetServer? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,6 +42,10 @@ class MainActivity : Activity() {
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         )
+
+        // Iniciar servidor local
+        server = AssetServer(this)
+        server?.start()
 
         webView = WebView(this)
         webView.settings.apply {
@@ -44,7 +71,9 @@ class MainActivity : Activity() {
         }
         webView.webViewClient = WebViewClient()
         setContentView(webView)
-        webView.loadUrl("file:///android_asset/index.html")
+
+        // Cargar desde servidor local en vez de file://
+        webView.loadUrl("http://127.0.0.1:8080/")
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -54,5 +83,9 @@ class MainActivity : Activity() {
         return super.onKeyDown(keyCode, event)
     }
 
-    override fun onDestroy() { super.onDestroy(); webView.destroy() }
+    override fun onDestroy() {
+        super.onDestroy()
+        server?.stop()
+        webView.destroy()
+    }
 }
